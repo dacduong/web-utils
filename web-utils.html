@@ -147,6 +147,14 @@
             min-height: 150px;
         }
 
+        /* Auto-expanding textarea styles */
+        textarea.auto-expand {
+            resize: none;
+            overflow-y: auto;
+            max-height: 1000px;
+            transition: height 0.3s ease;
+        }
+
         .button-group {
             display: flex;
             gap: 15px;
@@ -974,18 +982,65 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
-
-    <!--<script src="scripts/crypto-js.min.js"></script>
-    <script src="scripts/qrious.min.js"></script>
-    <script src="scripts/jsQR.js"></script>-->
+    <script src="crypto-js.min.js"></script>
+    <script src="qrious.min.js"></script>
+    <script src="jsQR.js"></script>
 
     <script>
         // Global variables for QR decoding and encryption
         let qrImageFile = null;
         let passwordVisible = false;
+
+        // Auto-expanding textarea functionality
+        function autoExpandTextarea(element) {
+            if (!element) return;
+            
+            // Reset height to auto to get the actual scrollHeight
+            element.style.height = 'auto';
+            
+            // Calculate the new height based on content
+            const newHeight = Math.min(element.scrollHeight, 1000);
+            
+            // Set the new height
+            element.style.height = newHeight + 'px';
+        }
+
+        function setupAutoExpandTextareas() {
+            // List of output textarea IDs that should auto-expand
+            const outputTextareaIds = [
+                'stringOutput', 'urlOutput', 'base64Output', 'jwtOutput', 
+                'jsonOutput', 'hashOutput', 'escapeOutput', 'encryptedText', 
+                'decryptedText', 'base64FileOutput'
+            ];
+
+            outputTextareaIds.forEach(id => {
+                const textarea = document.getElementById(id);
+                if (textarea) {
+                    // Add auto-expand class
+                    textarea.classList.add('auto-expand');
+                    
+                    // Set up observer to watch for content changes
+                    const observer = new MutationObserver(() => {
+                        autoExpandTextarea(textarea);
+                    });
+                    
+                    observer.observe(textarea, {
+                        attributes: true,
+                        attributeFilter: ['value']
+                    });
+
+                    // Also watch for direct value changes
+                    const originalValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+                    Object.defineProperty(textarea, 'value', {
+                        get: originalValue.get,
+                        set: function(val) {
+                            originalValue.set.call(this, val);
+                            autoExpandTextarea(this);
+                        }
+                    });
+                }
+            });
+        }
 
         // Tab Switching
         function switchTab(tabId) {
@@ -1100,7 +1155,9 @@
                 };
                 
                 const encryptedText = btoa(JSON.stringify(encryptedData));
-                document.getElementById('encryptedText').value = encryptedText;
+                const outputElement = document.getElementById('encryptedText');
+                outputElement.value = encryptedText;
+                autoExpandTextarea(outputElement);
                 
                 // Generate QR code for encrypted text
                 generateEncryptedQR(encryptedText);
@@ -1150,7 +1207,9 @@
                     throw new Error('Invalid password or corrupted data');
                 }
                 
-                document.getElementById('decryptedText').value = decryptedText;
+                const outputElement = document.getElementById('decryptedText');
+                outputElement.value = decryptedText;
+                autoExpandTextarea(outputElement);
                 showNotification('Text decrypted successfully', 'success');
             } catch (e) {
                 alert('Decryption failed: ' + e.message);
@@ -1216,55 +1275,66 @@
                 .replace(/\\t/g, '\t')
                 .replace(/\\r/g, '\r')
                 .replace(/\\\\/g, '\\');
-            document.getElementById('stringOutput').value = output;
+            const outputElement = document.getElementById('stringOutput');
+            outputElement.value = output;
+            autoExpandTextarea(outputElement);
         }
 
         // URL Encoder/Decoder
         function encodeUrl() {
             const input = document.getElementById('urlInput').value;
             const method = document.getElementById('urlMethod').value;
+            const outputElement = document.getElementById('urlOutput');
             try {
                 const output = method === 'encodeURI' ? encodeURI(input) : encodeURIComponent(input);
-                document.getElementById('urlOutput').value = output;
+                outputElement.value = output;
             } catch (e) {
-                document.getElementById('urlOutput').value = 'Error: ' + e.message;
+                outputElement.value = 'Error: ' + e.message;
             }
+            autoExpandTextarea(outputElement);
         }
 
         function decodeUrl() {
             const input = document.getElementById('urlInput').value;
+            const outputElement = document.getElementById('urlOutput');
             try {
                 const output = decodeURIComponent(input);
-                document.getElementById('urlOutput').value = output;
+                outputElement.value = output;
             } catch (e) {
-                document.getElementById('urlOutput').value = 'Error: ' + e.message;
+                outputElement.value = 'Error: ' + e.message;
             }
+            autoExpandTextarea(outputElement);
         }
 
         // Base64 Encoder/Decoder
         function encodeBase64() {
             const input = document.getElementById('base64Input').value;
+            const outputElement = document.getElementById('base64Output');
             try {
                 const output = btoa(unescape(encodeURIComponent(input)));
-                document.getElementById('base64Output').value = output;
+                outputElement.value = output;
             } catch (e) {
-                document.getElementById('base64Output').value = 'Error: ' + e.message;
+                outputElement.value = 'Error: ' + e.message;
             }
+            autoExpandTextarea(outputElement);
         }
 
         function decodeBase64() {
             const input = document.getElementById('base64Input').value;
+            const outputElement = document.getElementById('base64Output');
             try {
                 const output = decodeURIComponent(escape(atob(input)));
-                document.getElementById('base64Output').value = output;
+                outputElement.value = output;
             } catch (e) {
-                document.getElementById('base64Output').value = 'Error: ' + e.message;
+                outputElement.value = 'Error: ' + e.message;
             }
+            autoExpandTextarea(outputElement);
         }
 
         // JWT Decoder
         function decodeJWT() {
             const token = document.getElementById('jwtInput').value.trim();
+            const outputElement = document.getElementById('jwtOutput');
             try {
                 const parts = token.split('.');
                 if (parts.length !== 3) {
@@ -1280,34 +1350,39 @@
                     signature: parts[2]
                 };
 
-                document.getElementById('jwtOutput').value = JSON.stringify(result, null, 4);
+                outputElement.value = JSON.stringify(result, null, 4);
             } catch (e) {
-                document.getElementById('jwtOutput').value = 'Error: ' + e.message;
+                outputElement.value = 'Error: ' + e.message;
             }
+            autoExpandTextarea(outputElement);
         }
 
         // JSON Formatter
         function formatJson() {
             const input = document.getElementById('jsonInput').value;
             const indent = parseInt(document.getElementById('jsonIndent').value);
+            const outputElement = document.getElementById('jsonOutput');
             try {
                 const parsed = JSON.parse(input);
                 const output = JSON.stringify(parsed, null, indent);
-                document.getElementById('jsonOutput').value = output;
+                outputElement.value = output;
             } catch (e) {
-                document.getElementById('jsonOutput').value = 'Error: ' + e.message;
+                outputElement.value = 'Error: ' + e.message;
             }
+            autoExpandTextarea(outputElement);
         }
 
         function minifyJson() {
             const input = document.getElementById('jsonInput').value;
+            const outputElement = document.getElementById('jsonOutput');
             try {
                 const parsed = JSON.parse(input);
                 const output = JSON.stringify(parsed);
-                document.getElementById('jsonOutput').value = output;
+                outputElement.value = output;
             } catch (e) {
-                document.getElementById('jsonOutput').value = 'Error: ' + e.message;
+                outputElement.value = 'Error: ' + e.message;
             }
+            autoExpandTextarea(outputElement);
         }
 
         // UUID Generator
@@ -1380,7 +1455,9 @@
                     return;
             }
             
-            document.getElementById('hashOutput').value = `${algorithm.toUpperCase()}: ${hash}`;
+            const outputElement = document.getElementById('hashOutput');
+            outputElement.value = `${algorithm.toUpperCase()}: ${hash}`;
+            autoExpandTextarea(outputElement);
         }
 
         // String Escape/Unescape
@@ -1394,7 +1471,9 @@
                 .replace(new RegExp('\\' + escapeChar, 'g'), escapeChar + escapeChar)
                 .replace(new RegExp('\\' + quote, 'g'), escapeChar + quote);
             
-            document.getElementById('escapeOutput').value = escaped;
+            const outputElement = document.getElementById('escapeOutput');
+            outputElement.value = escaped;
+            autoExpandTextarea(outputElement);
         }
 
         function unescapeString() {
@@ -1407,7 +1486,9 @@
                 .replace(new RegExp('\\' + escapeChar + quote, 'g'), quote)
                 .replace(new RegExp('\\' + escapeChar + '\\' + escapeChar, 'g'), escapeChar);
             
-            document.getElementById('escapeOutput').value = unescaped;
+            const outputElement = document.getElementById('escapeOutput');
+            outputElement.value = unescaped;
+            autoExpandTextarea(outputElement);
         }
 
         // QR Code Generator
@@ -1662,7 +1743,9 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 const base64 = e.target.result.split(',')[1]; // Remove data URL prefix
-                document.getElementById('base64FileOutput').value = base64;
+                const outputElement = document.getElementById('base64FileOutput');
+                outputElement.value = base64;
+                autoExpandTextarea(outputElement);
                 currentFileData = {
                     name: file.name,
                     type: file.type,
@@ -1785,6 +1868,7 @@
             setupDragAndDrop();
             setupQRDragAndDrop();
             loadSavedPassword(); // Load saved encryption password
+            setupAutoExpandTextareas(); // Initialize auto-expanding textareas
         });
     </script>
 </body>
